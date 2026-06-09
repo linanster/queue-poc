@@ -1,0 +1,57 @@
+// Queue PoC — Prisma schema.
+// SQLite for the PoC; swap `provider` to "postgresql" for production (design.md §3.1.1).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A physical store. Each store has its own independent, self-incrementing
+// ticket numbering and a single queue (design.md §2.5).
+model Store {
+  id         String   @id @default(uuid())
+  name       String
+  timezone   String   @default("Asia/Shanghai")
+  // In-shift staff count; drives Ready Pool capacity = staffCount + buffer.
+  // Editable from the admin backend (design.md §2.4).
+  staffCount Int      @default(2)
+  createdAt  DateTime @default(now())
+
+  tickets Ticket[]
+}
+
+// An anonymous client (browser). The primary identity key — issued by the
+// server and stored in an HttpOnly cookie. No personal data (design.md §2.1).
+model Client {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  // Reserved for phase 2: voluntary anonymous-clientId <-> memberId binding
+  // (design.md §2.6). Nullable, single-direction reference. Not used in PoC.
+  memberId  String?
+
+  tickets Ticket[]
+}
+
+// A queue ticket. Status follows the state machine in design.md §3.4.
+model Ticket {
+  id        String   @id @default(uuid())
+  storeId   String
+  clientId  String
+  // Self-incrementing number within a store.
+  number    Int
+  // WAITING | READY | SERVING | DONE | MISSED | CANCELLED
+  status    String   @default("WAITING")
+  createdAt DateTime @default(now())
+  calledAt  DateTime?
+  servedAt  DateTime?
+
+  store  Store  @relation(fields: [storeId], references: [id])
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@index([storeId, status])
+  @@index([storeId, number])
+}

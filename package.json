@@ -1,0 +1,20 @@
+{
+  "name": "queue-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "On Running offline-store virtual queue — PoC (independent monorepo, NestJS + React)",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @queue/shared",
+    "db:setup": "npm run db:setup -w @queue/api",
+    "dev": "npm run build:shared && concurrently -n api,web -c blue,magenta \"npm run dev -w @queue/api\" \"npm run dev -w @queue/web\"",
+    "dev:api": "npm run dev -w @queue/api",
+    "dev:web": "npm run dev -w @queue/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

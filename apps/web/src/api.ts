@@ -1,0 +1,61 @@
+import type {
+  AdminQueueView,
+  CreateTicketRequest,
+  StoreView,
+  TicketView,
+} from '@queue/shared';
+
+// Same-origin (Vite proxies /api → API), so the HttpOnly client cookie flows.
+async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`${res.status}: ${body}`);
+  }
+  return (await res.json()) as T;
+}
+
+export const api = {
+  getStore: (storeId: string) => http<StoreView>(`/api/stores/${storeId}`),
+
+  takeTicket: (body: CreateTicketRequest) =>
+    http<TicketView>('/api/tickets', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  myTicket: (storeId: string) =>
+    http<{ ticket: TicketView | null }>(`/api/tickets/me?storeId=${storeId}`),
+
+  cancel: (storeId: string) =>
+    http<{ ok: true }>(`/api/tickets/me?storeId=${storeId}`, { method: 'DELETE' }),
+
+  // --- admin ---
+  adminQueue: (storeId: string) =>
+    http<AdminQueueView>(`/api/admin/stores/${storeId}/queue`),
+
+  callNext: (storeId: string) =>
+    http<{ ok: true }>(`/api/admin/stores/${storeId}/call-next`, { method: 'POST' }),
+
+  reset: (storeId: string) =>
+    http<{ ok: true }>(`/api/admin/stores/${storeId}/reset`, { method: 'POST' }),
+
+  setStaffCount: (storeId: string, staffCount: number) =>
+    http<{ ok: true }>(`/api/admin/stores/${storeId}/staff-count`, {
+      method: 'POST',
+      body: JSON.stringify({ staffCount }),
+    }),
+
+  serve: (ticketId: string) =>
+    http<{ ok: true }>(`/api/admin/tickets/${ticketId}/serve`, { method: 'POST' }),
+  done: (ticketId: string) =>
+    http<{ ok: true }>(`/api/admin/tickets/${ticketId}/done`, { method: 'POST' }),
+  miss: (ticketId: string) =>
+    http<{ ok: true }>(`/api/admin/tickets/${ticketId}/miss`, { method: 'POST' }),
+  recall: (ticketId: string) =>
+    http<{ ok: true }>(`/api/admin/tickets/${ticketId}/recall`, { method: 'POST' }),
+};

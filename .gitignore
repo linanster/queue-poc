@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# build output
+dist/
+build/
+**/dist/
+**/build/
+
+# prisma / sqlite
+*.sqlite
+*.sqlite-journal
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# env
+.env
+.env.local
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
