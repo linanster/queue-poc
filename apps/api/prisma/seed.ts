@@ -30,6 +30,9 @@ async function main() {
       name: 'On Running — Demo Store',
       timezone: 'Asia/Shanghai',
       staffCount: 2,
+      readyTimeoutMinutes: 5,
+      recallWindowMinutes: 15,
+      servingAlertMinutes: 20,
     },
   });
 

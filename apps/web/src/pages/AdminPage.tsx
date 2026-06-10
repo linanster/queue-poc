@@ -10,6 +10,12 @@ export function AdminPage() {
   const [data, setData] = useState<AdminQueueView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [ruleDraft, setRuleDraft] = useState({
+    readyTimeoutMinutes: 5,
+    recallWindowMinutes: 15,
+    servingAlertMinutes: 20,
+  });
+  const [ruleDirty, setRuleDirty] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -26,6 +32,11 @@ export function AdminPage() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  useEffect(() => {
+    if (!data || ruleDirty) return;
+    setRuleDraft(data.rules);
+  }, [data, ruleDirty]);
+
   async function act(fn: () => Promise<unknown>) {
     await fn();
     await refresh();
@@ -37,6 +48,8 @@ export function AdminPage() {
   const ready = data.tickets.filter((t) => t.status === TicketStatus.READY);
   const serving = data.tickets.filter((t) => t.status === TicketStatus.SERVING);
   const waiting = data.tickets.filter((t) => t.status === TicketStatus.WAITING);
+  const missed = data.tickets.filter((t) => t.status === TicketStatus.MISSED);
+  const servingAlertMs = data.rules.servingAlertMinutes * 60_000;
 
   return (
     <div className="admin">
@@ -55,6 +68,79 @@ export function AdminPage() {
             />
           </label>
           <span className="badge">Ready Pool capacity: {data.capacity}</span>
+          <span className="badge">
+            Ready timeout: {data.rules.readyTimeoutMinutes}m
+          </span>
+          <span className="badge">
+            Recall window: {data.rules.recallWindowMinutes}m
+          </span>
+          <span className="badge badge--warn">
+            Serving alert: {data.rules.servingAlertMinutes}m
+          </span>
+        </div>
+        <div className="admin__rules">
+          <label>
+            Ready timeout(min)
+            <input
+              type="number"
+              min={1}
+              value={ruleDraft.readyTimeoutMinutes}
+              onChange={(e) => {
+                setRuleDirty(true);
+                setRuleDraft((v) => ({
+                  ...v,
+                  readyTimeoutMinutes: Number(e.target.value),
+                }));
+              }}
+            />
+          </label>
+          <label>
+            Recall window(min)
+            <input
+              type="number"
+              min={1}
+              value={ruleDraft.recallWindowMinutes}
+              onChange={(e) => {
+                setRuleDirty(true);
+                setRuleDraft((v) => ({
+                  ...v,
+                  recallWindowMinutes: Number(e.target.value),
+                }));
+              }}
+            />
+          </label>
+          <label>
+            Serving alert(min)
+            <input
+              type="number"
+              min={1}
+              value={ruleDraft.servingAlertMinutes}
+              onChange={(e) => {
+                setRuleDirty(true);
+                setRuleDraft((v) => ({
+                  ...v,
+                  servingAlertMinutes: Number(e.target.value),
+                }));
+              }}
+            />
+          </label>
+          <button
+            className="btn btn--sm"
+            disabled={!ruleDirty}
+            onClick={() =>
+              act(async () => {
+                await api.setQueueRules(
+                  storeId,
+                  ruleDraft.readyTimeoutMinutes,
+                  ruleDraft.recallWindowMinutes,
+                  ruleDraft.servingAlertMinutes,
+                );
+                setRuleDirty(false);
+              })
+            }
+          >
+            Save rules
+          </button>
         </div>
         <div className="admin__actions">
           <button className="btn btn--ghost" onClick={() => setShowQr((v) => !v)}>
@@ -109,7 +195,15 @@ export function AdminPage() {
 
         <Column title={`Serving (${serving.length})`}>
           {serving.map((tk) => (
-            <Row key={tk.id} number={tk.number} status={tk.status}>
+            <Row
+              key={tk.id}
+              number={tk.number}
+              status={tk.status}
+              warn={
+                Boolean(tk.servedAt) &&
+                Date.now() - new Date(tk.servedAt as string).getTime() > servingAlertMs
+              }
+            >
               <button className="btn btn--sm" onClick={() => act(() => api.done(tk.id))}>
                 Done
               </button>
@@ -121,6 +215,16 @@ export function AdminPage() {
           {waiting.map((tk) => (
             <Row key={tk.id} number={tk.number} status={tk.status} muted>
               <span className="row__hint">#{tk.peopleAhead} ahead</span>
+            </Row>
+          ))}
+        </Column>
+
+        <Column title={`Missed (${missed.length})`}>
+          {missed.map((tk) => (
+            <Row key={tk.id} number={tk.number} status={tk.status} muted>
+              <button className="btn btn--sm" onClick={() => act(() => api.recall(tk.id))}>
+                Recall
+              </button>
             </Row>
           ))}
         </Column>
@@ -142,16 +246,21 @@ function Row({
   number,
   status,
   muted,
+  warn,
   children,
 }: {
   number: number;
   status: TicketStatus;
   muted?: boolean;
+  warn?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`row row--${status.toLowerCase()} ${muted ? 'row--muted' : ''}`}>
+    <div
+      className={`row row--${status.toLowerCase()} ${muted ? 'row--muted' : ''} ${warn ? 'row--warn' : ''}`}
+    >
       <span className="row__number">{number}</span>
+      {warn && <span className="badge badge--warn">Overdue</span>}
       <span className="row__actions">{children}</span>
     </div>
   );

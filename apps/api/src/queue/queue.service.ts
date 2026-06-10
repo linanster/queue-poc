@@ -111,11 +111,14 @@ export class QueueService {
   // --- Admin operations ----------------------------------------------------
 
   async getAdminQueue(storeId: string): Promise<AdminQueueView> {
+    // Keep queue state fresh even during low-traffic periods (e.g., READY timeout).
+    await this.reconcile(storeId, true);
+
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) throw new NotFoundException('Store not found');
 
     const tickets = await this.prisma.ticket.findMany({
-      where: { storeId, status: { in: ACTIVE_STATUSES } },
+      where: { storeId, status: { in: [...ACTIVE_STATUSES, TicketStatus.MISSED] } },
       orderBy: { number: 'asc' },
     });
 
@@ -130,6 +133,11 @@ export class QueueService {
         staffCount: store.staffCount,
       },
       capacity: store.staffCount + READY_POOL_BUFFER,
+      rules: {
+        readyTimeoutMinutes: store.readyTimeoutMinutes,
+        recallWindowMinutes: store.recallWindowMinutes,
+        servingAlertMinutes: store.servingAlertMinutes,
+      },
       scanUrl: `${webOrigin}/s/${store.id}?sig=${sig}`,
       tickets: await Promise.all(tickets.map((t) => this.toAdminTicketView(t))),
     };
@@ -172,6 +180,16 @@ export class QueueService {
   async recall(ticketId: string): Promise<void> {
     const ticket = await this.requireTicket(ticketId);
     this.assertStatus(ticket, [TicketStatus.MISSED], 'recall');
+
+    const store = await this.prisma.store.findUnique({ where: { id: ticket.storeId } });
+    if (!store) throw new NotFoundException('Store not found');
+
+    const recallWindowMs = store.recallWindowMinutes * 60_000;
+    const recalledFrom = ticket.calledAt ?? ticket.createdAt;
+    if (Date.now() - recalledFrom.getTime() > recallWindowMs) {
+      throw new BadRequestException('Recall window expired. Ask customer to take a new ticket.');
+    }
+
     await this.prisma.ticket.update({
       where: { id: ticketId },
       data: { status: TicketStatus.READY, calledAt: new Date() },
@@ -213,6 +231,31 @@ export class QueueService {
     await this.reconcile(storeId);
   }
 
+  /** Update store-level queue timing rules used by automation and alerts. */
+  async setQueueRules(
+    storeId: string,
+    readyTimeoutMinutes: number,
+    recallWindowMinutes: number,
+    servingAlertMinutes: number,
+  ): Promise<void> {
+    this.assertPositiveInteger(readyTimeoutMinutes, 'readyTimeoutMinutes');
+    this.assertPositiveInteger(recallWindowMinutes, 'recallWindowMinutes');
+    this.assertPositiveInteger(servingAlertMinutes, 'servingAlertMinutes');
+
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    if (!store) throw new NotFoundException('Store not found');
+
+    await this.prisma.store.update({
+      where: { id: storeId },
+      data: {
+        readyTimeoutMinutes,
+        recallWindowMinutes,
+        servingAlertMinutes,
+      },
+    });
+    await this.reconcile(storeId);
+  }
+
   // --- Ready Pool core -----------------------------------------------------
 
   /**
@@ -220,9 +263,11 @@ export class QueueService {
    * READY count == capacity (staffCount + buffer). Never kicks out tickets
    * already READY when capacity shrinks (design.md §2.4).
    */
-  private async reconcile(storeId: string): Promise<void> {
+  private async reconcile(storeId: string, publishIfChangedOnly = false): Promise<void> {
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) return;
+
+    let changed = await this.expireReadyTickets(storeId, store.readyTimeoutMinutes);
 
     const capacity = store.staffCount + READY_POOL_BUFFER;
     const readyCount = await this.prisma.ticket.count({
@@ -242,9 +287,39 @@ export class QueueService {
           data: { status: TicketStatus.READY, calledAt: new Date() },
         });
       }
+      changed = true;
     }
 
-    await this.publishStore(storeId);
+    if (!publishIfChangedOnly || changed) {
+      await this.publishStore(storeId);
+    }
+  }
+
+  /** Auto-demote READY tickets that stayed unanswered for too long. */
+  private async expireReadyTickets(
+    storeId: string,
+    readyTimeoutMinutes: number,
+  ): Promise<boolean> {
+    const readyTimeoutMs = readyTimeoutMinutes * 60_000;
+    const cutoff = new Date(Date.now() - readyTimeoutMs);
+
+    const expired = await this.prisma.ticket.findMany({
+      where: {
+        storeId,
+        status: TicketStatus.READY,
+        calledAt: { not: null, lte: cutoff },
+      },
+      select: { id: true },
+    });
+
+    if (expired.length === 0) return false;
+
+    await this.prisma.ticket.updateMany({
+      where: { id: { in: expired.map((t) => t.id) } },
+      data: { status: TicketStatus.MISSED },
+    });
+
+    return true;
   }
 
   // --- View mapping + real-time push --------------------------------------
@@ -331,6 +406,12 @@ export class QueueService {
       throw new BadRequestException(
         `Cannot ${action} a ticket in status ${ticket.status}`,
       );
+    }
+  }
+
+  private assertPositiveInteger(value: number, field: string): void {
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new BadRequestException(`${field} must be a positive integer`);
     }
   }
 }

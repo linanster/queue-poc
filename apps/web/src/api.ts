@@ -50,6 +50,21 @@ export const api = {
       body: JSON.stringify({ staffCount }),
     }),
 
+  setQueueRules: (
+    storeId: string,
+    readyTimeoutMinutes: number,
+    recallWindowMinutes: number,
+    servingAlertMinutes: number,
+  ) =>
+    http<{ ok: true }>(`/api/admin/stores/${storeId}/rules`, {
+      method: 'POST',
+      body: JSON.stringify({
+        readyTimeoutMinutes,
+        recallWindowMinutes,
+        servingAlertMinutes,
+      }),
+    }),
+
   serve: (ticketId: string) =>
     http<{ ok: true }>(`/api/admin/tickets/${ticketId}/serve`, { method: 'POST' }),
   done: (ticketId: string) =>

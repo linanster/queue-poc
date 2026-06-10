@@ -36,6 +36,22 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Post('stores/:storeId/rules')
+  async setQueueRules(
+    @Param('storeId') storeId: string,
+    @Body('readyTimeoutMinutes') readyTimeoutMinutes: number,
+    @Body('recallWindowMinutes') recallWindowMinutes: number,
+    @Body('servingAlertMinutes') servingAlertMinutes: number,
+  ): Promise<{ ok: true }> {
+    await this.queue.setQueueRules(
+      storeId,
+      Number(readyTimeoutMinutes),
+      Number(recallWindowMinutes),
+      Number(servingAlertMinutes),
+    );
+    return { ok: true };
+  }
+
   @Post('tickets/:ticketId/serve')
   async serve(@Param('ticketId') ticketId: string): Promise<{ ok: true }> {
     await this.queue.serve(ticketId);
