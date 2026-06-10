@@ -55,6 +55,14 @@ model Ticket {
   createdAt DateTime @default(now())
   calledAt  DateTime?
   servedAt  DateTime?
+  // Reserved for membership attribution (design.md §2.6). NOT implemented in the
+  // PoC — the UI shows a mock "link membership" CTA only. memberId is an opaque,
+  // platform-agnostic identifier (NOT WeChat-specific) captured at a lifecycle
+  // moment (typically checkout) as an immutable per-ticket snapshot, so data
+  // science can attribute anonymous queue events to members without coupling
+  // the queue to any membership system. memberBoundAt records when it happened.
+  memberId      String?
+  memberBoundAt DateTime?
 
   store  Store  @relation(fields: [storeId], references: [id])
   client Client @relation(fields: [clientId], references: [id])

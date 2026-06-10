@@ -28,6 +28,13 @@ const dict: Dict = {
   },
   reconnecting: { zh: '正在重新连接…', en: 'Reconnecting…' },
   errorGeneric: { zh: '出错了，请重新扫码。', en: 'Something went wrong — please scan again.' },
+  linkMember: { zh: '登录关联会员', en: 'Sign in to link membership' },
+  linkMemberHint: {
+    zh: '关联会员后，本次到店可累积积分 / 享专属权益。（示例功能）',
+    en: 'Link your membership to earn points / unlock perks for this visit. (Demo)',
+  },
+  linkMemberRedirect: { zh: '正在跳转会员登录…', en: 'Redirecting to member login…' },
+  memberLinked: { zh: '已关联会员（示例）', en: 'Membership linked (demo)' },
 };
 
 export function detectLang(): Lang {

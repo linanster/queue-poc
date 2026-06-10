@@ -17,6 +17,9 @@ export function QueuePage() {
   const [store, setStore] = useState<StoreView | null>(null);
   const [ticket, setTicket] = useState<TicketView | null>(null);
   const [live, setLive] = useState(true);
+  // Mock-only membership link state (design.md §2.6). PoC has no real binding;
+  // 'idle' | 'redirecting' | 'linked' is purely client-side for the demo.
+  const [memberLink, setMemberLink] = useState<'idle' | 'redirecting' | 'linked'>('idle');
 
   // Take (or recover) a ticket on load.
   useEffect(() => {
@@ -61,6 +64,15 @@ export function QueuePage() {
     setTicket((prev) => (prev ? { ...prev, status: TicketStatus.CANCELLED } : prev));
   }
 
+  // MOCK ONLY (design.md §2.6). In production this redirects to the brand's
+  // member login (OAuth / H5 — platform-agnostic, NOT WeChat-specific); the
+  // returned member id would then be bound via POST /api/tickets/:id/bind-member.
+  // The PoC just simulates that round-trip with local state.
+  function linkMember() {
+    setMemberLink('redirecting');
+    setTimeout(() => setMemberLink('linked'), 900);
+  }
+
   if (phase === 'taking') {
     return <Screen>{t('taking', lang)}</Screen>;
   }
@@ -87,6 +99,26 @@ export function QueuePage() {
       </div>
 
       <p className="hint">{t('saveHint', lang)}</p>
+
+      {ticket &&
+        (ticket.status === TicketStatus.SERVING ||
+          ticket.status === TicketStatus.DONE) &&
+        (memberLink === 'linked' ? (
+          <span className="badge badge--member">✓ {t('memberLinked', lang)}</span>
+        ) : (
+          <div className="member-cta">
+            <button
+              className="btn"
+              onClick={linkMember}
+              disabled={memberLink === 'redirecting'}
+            >
+              {memberLink === 'redirecting'
+                ? t('linkMemberRedirect', lang)
+                : t('linkMember', lang)}
+            </button>
+            <p className="hint">{t('linkMemberHint', lang)}</p>
+          </div>
+        ))}
 
       {ticket &&
         (ticket.status === TicketStatus.WAITING ||

@@ -70,6 +70,7 @@ body {
 .ticket__ahead strong { color: var(--accent); font-size: 20px; }
 
 .hint { color: var(--muted); font-size: 13px; max-width: 320px; }
+.member-cta { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 
 .privacy {
   margin-top: auto;
@@ -87,6 +88,7 @@ body {
   color: var(--muted);
 }
 .badge--warn { background: rgba(245, 166, 35, 0.18); color: var(--warn); }
+.badge--member { background: rgba(0, 210, 122, 0.18); color: var(--accent); }
 
 /* --- buttons --- */
 .btn {
