@@ -108,6 +108,52 @@ body {
 .admin__meta input { width: 64px; background: var(--card); color: var(--fg); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 4px 8px; }
 .admin__actions { display: flex; gap: 12px; margin-bottom: 24px; }
 
+.qr-panel {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.qr-panel__code {
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+  line-height: 0;
+}
+.qr-panel__info h2 { margin: 0 0 6px; font-size: 16px; }
+.qr-panel__info p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.qr-panel__url {
+  display: block;
+  word-break: break-all;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+@media print {
+  /* Print only the QR image — hide everything else (queue columns, header,
+     and the descriptive text). !important guards against later base rules. */
+  .admin__header,
+  .admin__cols {
+    display: none !important;
+  }
+  .qr-panel {
+    background: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    justify-content: center;
+  }
+  .qr-panel__info {
+    display: none !important;
+  }
+}
+
 .admin__cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .col { background: var(--card); border-radius: 14px; padding: 16px; }
 .col h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); }

@@ -119,6 +119,9 @@ export class QueueService {
       orderBy: { number: 'asc' },
     });
 
+    const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
+    const sig = this.qr.sign(store.id);
+
     return {
       store: {
         id: store.id,
@@ -127,6 +130,7 @@ export class QueueService {
         staffCount: store.staffCount,
       },
       capacity: store.staffCount + READY_POOL_BUFFER,
+      scanUrl: `${webOrigin}/s/${store.id}?sig=${sig}`,
       tickets: await Promise.all(tickets.map((t) => this.toAdminTicketView(t))),
     };
   }

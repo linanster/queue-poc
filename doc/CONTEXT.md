@@ -127,6 +127,7 @@ npm run dev                      # 同时起 API(:3000) + Web(:5173)
 - 单独跑：`npm run dev:api` / `npm run dev:web`
 - 重新 seed：`npm run db:seed -w @queue/api`
 - seed 会打印 demo 门店的**签名扫码 URL**（`http://localhost:5173/s/<storeId>?sig=<sig>`）和**后台 URL**（`/admin/<storeId>`），浏览器直接打开即可演示。
+- **二维码图片**：在**运营后台页**点【Show store QR】即可看到由 `scanUrl` 渲染的静态二维码（`qrcode.react`），可【Print】打印张贴。二维码本身是 URL 文本编码成图，后端在 `GET /api/admin/stores/:storeId/queue` 的响应里下发 `scanUrl`（签名由持有 SECRET 的后端生成）。
 
 ---
 

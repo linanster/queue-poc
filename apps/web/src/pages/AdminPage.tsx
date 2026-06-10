@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { TicketStatus } from '@queue/shared';
 import type { AdminQueueView } from '@queue/shared';
 import { api } from '../api';
@@ -8,6 +9,7 @@ export function AdminPage() {
   const { storeId = '' } = useParams();
   const [data, setData] = useState<AdminQueueView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -55,6 +57,9 @@ export function AdminPage() {
           <span className="badge">Ready Pool capacity: {data.capacity}</span>
         </div>
         <div className="admin__actions">
+          <button className="btn btn--ghost" onClick={() => setShowQr((v) => !v)}>
+            {showQr ? 'Hide store QR' : 'Show store QR'}
+          </button>
           <button className="btn" onClick={() => act(() => api.callNext(storeId))}>
             Call next
           </button>
@@ -68,6 +73,22 @@ export function AdminPage() {
           </button>
         </div>
       </header>
+
+      {showQr && (
+        <section className="qr-panel">
+          <div className="qr-panel__code">
+            <QRCodeSVG value={data.scanUrl} size={220} marginSize={2} />
+          </div>
+          <div className="qr-panel__info">
+            <h2>Store QR (static, printable)</h2>
+            <p>Customers scan this to take a ticket. Print and post it in-store.</p>
+            <code className="qr-panel__url">{data.scanUrl}</code>
+            <button className="btn btn--sm" onClick={() => window.print()}>
+              Print
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="admin__cols">
         <Column title={`Ready (${ready.length})`}>

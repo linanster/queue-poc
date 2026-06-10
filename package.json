@@ -9,7 +9,11 @@
   ],
   "scripts": {
     "build:shared": "npm run build -w @queue/shared",
+    "build:api": "npm run build:shared && npm run prisma:generate -w @queue/api && npm run build -w @queue/api",
+    "build:web": "npm run build:shared && npm run build -w @queue/web",
+    "prod:api": "npm run prod -w @queue/api",
     "db:setup": "npm run db:setup -w @queue/api",
+    "db:seed": "npm run db:seed -w @queue/api",
     "dev": "npm run build:shared && concurrently -n api,web -c blue,magenta \"npm run dev -w @queue/api\" \"npm run dev -w @queue/web\"",
     "dev:api": "npm run dev -w @queue/api",
     "dev:web": "npm run dev -w @queue/web"

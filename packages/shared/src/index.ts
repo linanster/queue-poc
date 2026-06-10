@@ -53,6 +53,8 @@ export interface StoreView {
 export interface AdminQueueView {
   store: StoreView;
   capacity: number;
+  /** Signed scan URL encoded by the store's printable static QR (design.md §2.9). */
+  scanUrl: string;
   tickets: AdminTicketView[];
 }
 
