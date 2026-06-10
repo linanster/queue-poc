@@ -169,9 +169,10 @@ export class QueueService {
   async miss(ticketId: string): Promise<void> {
     const ticket = await this.requireTicket(ticketId);
     this.assertStatus(ticket, [TicketStatus.READY], 'miss');
+    // Reset calledAt so the recall window counts from the miss moment.
     await this.prisma.ticket.update({
       where: { id: ticketId },
-      data: { status: TicketStatus.MISSED },
+      data: { status: TicketStatus.MISSED, calledAt: new Date() },
     });
     await this.reconcile(ticket.storeId);
   }
@@ -334,9 +335,11 @@ export class QueueService {
 
     if (expired.length === 0) return false;
 
+    // Reset calledAt so the recall window counts from the miss moment, not the
+    // original READY-call time (otherwise it can expire to CANCELLED instantly).
     await this.prisma.ticket.updateMany({
       where: { id: { in: expired.map((t) => t.id) } },
-      data: { status: TicketStatus.MISSED },
+      data: { status: TicketStatus.MISSED, calledAt: new Date() },
     });
 
     return true;

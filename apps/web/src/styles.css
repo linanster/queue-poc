@@ -160,7 +160,12 @@ body {
 
 .admin__cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .col { background: var(--card); border-radius: 14px; padding: 16px; }
-.col h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); }
+.col h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.col__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+.col__dot--ready { background: var(--ready); }
+.col__dot--serving { background: var(--serving); }
+.col__dot--missed { background: var(--missed); }
+.col__dot--waiting { background: var(--muted); }
 .col__body { display: flex; flex-direction: column; gap: 8px; }
 
 .row {

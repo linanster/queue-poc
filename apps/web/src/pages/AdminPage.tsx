@@ -180,7 +180,15 @@ export function AdminPage() {
       )}
 
       <section className="admin__cols">
-        <Column title={`Ready (${ready.length})`}>
+        <Column title={`Waiting (${waiting.length})`} accent="waiting">
+          {waiting.map((tk) => (
+            <Row key={tk.id} number={tk.number} status={tk.status} muted>
+              <span className="row__hint">#{tk.peopleAhead} ahead</span>
+            </Row>
+          ))}
+        </Column>
+
+        <Column title={`Ready (${ready.length})`} accent="ready">
           {ready.map((tk) => (
             <Row key={tk.id} number={tk.number} status={tk.status}>
               <button className="btn btn--sm" onClick={() => act(() => api.serve(tk.id))}>
@@ -196,7 +204,7 @@ export function AdminPage() {
           ))}
         </Column>
 
-        <Column title={`Serving (${serving.length})`}>
+        <Column title={`Serving (${serving.length})`} accent="serving">
           {serving.map((tk) => (
             <Row
               key={tk.id}
@@ -214,15 +222,7 @@ export function AdminPage() {
           ))}
         </Column>
 
-        <Column title={`Waiting (${waiting.length})`}>
-          {waiting.map((tk) => (
-            <Row key={tk.id} number={tk.number} status={tk.status} muted>
-              <span className="row__hint">#{tk.peopleAhead} ahead</span>
-            </Row>
-          ))}
-        </Column>
-
-        <Column title={`Missed (${missed.length})`}>
+        <Column title={`Missed (${missed.length})`} accent="missed">
           {missed.map((tk) => (
             <Row key={tk.id} number={tk.number} status={tk.status} muted>
               <button className="btn btn--sm" onClick={() => act(() => api.recall(tk.id))}>
@@ -236,10 +236,21 @@ export function AdminPage() {
   );
 }
 
-function Column({ title, children }: { title: string; children: React.ReactNode }) {
+function Column({
+  title,
+  accent,
+  children,
+}: {
+  title: string;
+  accent?: 'ready' | 'serving' | 'waiting' | 'missed';
+  children: React.ReactNode;
+}) {
   return (
     <div className="col">
-      <h2>{title}</h2>
+      <h2>
+        {accent && <span className={`col__dot col__dot--${accent}`} />}
+        {title}
+      </h2>
       <div className="col__body">{children}</div>
     </div>
   );
