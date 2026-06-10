@@ -21,11 +21,11 @@ model Store {
   // Editable from the admin backend (design.md §2.4).
   staffCount Int      @default(2)
   // READY timeout in minutes before auto-demotion to MISSED.
-  readyTimeoutMinutes Int      @default(5)
+  readyTimeoutMinutes Int      @default(1)
   // Time window in minutes where staff can recall a MISSED ticket.
-  recallWindowMinutes Int      @default(15)
+  recallWindowMinutes Int      @default(1)
   // Serving alert threshold in minutes (warn only; no auto-DONE).
-  servingAlertMinutes Int      @default(20)
+  servingAlertMinutes Int      @default(1)
   createdAt  DateTime @default(now())
 
   tickets Ticket[]

@@ -21,6 +21,15 @@ export class AdminController {
     return { ok: true };
   }
 
+  @Post('stores/:storeId/call-next-batch')
+  async callNextBatch(
+    @Param('storeId') storeId: string,
+    @Body('count') count: number,
+  ): Promise<{ ok: true }> {
+    await this.queue.callNextBatch(storeId, Number(count));
+    return { ok: true };
+  }
+
   @Post('stores/:storeId/reset')
   async reset(@Param('storeId') storeId: string): Promise<{ ok: true }> {
     await this.queue.reset(storeId);

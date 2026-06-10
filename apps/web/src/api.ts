@@ -41,6 +41,12 @@ export const api = {
   callNext: (storeId: string) =>
     http<{ ok: true }>(`/api/admin/stores/${storeId}/call-next`, { method: 'POST' }),
 
+  callNextBatch: (storeId: string, count: number) =>
+    http<{ ok: true }>(`/api/admin/stores/${storeId}/call-next-batch`, {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
+
   reset: (storeId: string) =>
     http<{ ok: true }>(`/api/admin/stores/${storeId}/reset`, { method: 'POST' }),
 

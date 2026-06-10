@@ -11,9 +11,9 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [ruleDraft, setRuleDraft] = useState({
-    readyTimeoutMinutes: 5,
-    recallWindowMinutes: 15,
-    servingAlertMinutes: 20,
+    readyTimeoutMinutes: 1,
+    recallWindowMinutes: 1,
+    servingAlertMinutes: 1,
   });
   const [ruleDirty, setRuleDirty] = useState(false);
 
@@ -147,7 +147,10 @@ export function AdminPage() {
             {showQr ? 'Hide store QR' : 'Show store QR'}
           </button>
           <button className="btn" onClick={() => act(() => api.callNext(storeId))}>
-            Call next
+            Call next 1
+          </button>
+          <button className="btn" onClick={() => act(() => api.callNextBatch(storeId, 10))}>
+            Call next 10
           </button>
           <button
             className="btn btn--danger"

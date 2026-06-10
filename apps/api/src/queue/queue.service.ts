@@ -199,16 +199,35 @@ export class QueueService {
 
   /** Manually promote the next WAITING ticket into the Ready Pool. */
   async callNext(storeId: string): Promise<void> {
+    const moved = await this.callNextBatch(storeId, 1);
+    if (moved === 0) {
+      throw new BadRequestException('No waiting tickets to call');
+    }
+  }
+
+  /** Promote up to N WAITING tickets to READY in one action. */
+  async callNextBatch(storeId: string, count: number): Promise<number> {
+    this.assertPositiveInteger(count, 'count');
+
     const head = await this.prisma.ticket.findFirst({
       where: { storeId, status: TicketStatus.WAITING },
       orderBy: { number: 'asc' },
     });
-    if (!head) throw new BadRequestException('No waiting tickets to call');
-    await this.prisma.ticket.update({
-      where: { id: head.id },
+    if (!head) return 0;
+
+    const heads = await this.prisma.ticket.findMany({
+      where: { storeId, status: TicketStatus.WAITING },
+      orderBy: { number: 'asc' },
+      take: count,
+    });
+
+    await this.prisma.ticket.updateMany({
+      where: { id: { in: heads.map((t) => t.id) } },
       data: { status: TicketStatus.READY, calledAt: new Date() },
     });
     await this.publishStore(storeId);
+
+    return heads.length;
   }
 
   /** Clear the queue (closing time). All active tickets -> CANCELLED. */
@@ -268,6 +287,7 @@ export class QueueService {
     if (!store) return;
 
     let changed = await this.expireReadyTickets(storeId, store.readyTimeoutMinutes);
+    changed = (await this.expireMissedTickets(storeId, store.recallWindowMinutes)) || changed;
 
     const capacity = store.staffCount + READY_POOL_BUFFER;
     const readyCount = await this.prisma.ticket.count({
@@ -317,6 +337,34 @@ export class QueueService {
     await this.prisma.ticket.updateMany({
       where: { id: { in: expired.map((t) => t.id) } },
       data: { status: TicketStatus.MISSED },
+    });
+
+    return true;
+  }
+
+  /** Auto-expire MISSED tickets once recall window has elapsed. */
+  private async expireMissedTickets(
+    storeId: string,
+    recallWindowMinutes: number,
+  ): Promise<boolean> {
+    const recallWindowMs = recallWindowMinutes * 60_000;
+    const cutoff = new Date(Date.now() - recallWindowMs);
+
+    const expired = await this.prisma.ticket.findMany({
+      where: {
+        storeId,
+        status: TicketStatus.MISSED,
+        calledAt: { not: null, lte: cutoff },
+      },
+      select: { id: true },
+    });
+
+    if (expired.length === 0) return false;
+
+    // Stamp calledAt so publishStore's recent-closure heuristic pushes a final client update.
+    await this.prisma.ticket.updateMany({
+      where: { id: { in: expired.map((t) => t.id) } },
+      data: { status: TicketStatus.CANCELLED, calledAt: new Date() },
     });
 
     return true;

@@ -19,7 +19,7 @@ const dict: Dict = {
   statusServing: { zh: '服务中', en: 'Being served' },
   statusDone: { zh: '已完成', en: 'Completed' },
   statusMissed: { zh: '已过号（可联系店员召回）', en: 'Missed (ask staff to recall)' },
-  statusCancelled: { zh: '已取消', en: 'Cancelled' },
+  statusCancelled: { zh: '已取消/已失效（请重新取号）', en: 'Cancelled/expired (please take a new ticket)' },
   taking: { zh: '正在取号…', en: 'Taking a ticket…' },
   leaveQueue: { zh: '放弃排队', en: 'Leave queue' },
   saveHint: {
