@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { AdminQueueView } from '@queue/shared';
+import { AdminQueueView, AdminTicketView } from '@queue/shared';
 import { QueueService } from './queue.service';
 
 /**
@@ -13,6 +13,11 @@ export class AdminController {
   @Get('stores/:storeId/queue')
   getQueue(@Param('storeId') storeId: string): Promise<AdminQueueView> {
     return this.queue.getAdminQueue(storeId);
+  }
+
+  @Get('stores/:storeId/tickets')
+  getAllTickets(@Param('storeId') storeId: string): Promise<AdminTicketView[]> {
+    return this.queue.getAllTickets(storeId);
   }
 
   @Post('stores/:storeId/call-next')

@@ -1,5 +1,6 @@
 import type {
   AdminQueueView,
+  AdminTicketView,
   CreateTicketRequest,
   StoreView,
   TicketView,
@@ -37,6 +38,9 @@ export const api = {
   // --- admin ---
   adminQueue: (storeId: string) =>
     http<AdminQueueView>(`/api/admin/stores/${storeId}/queue`),
+
+  allTickets: (storeId: string) =>
+    http<AdminTicketView[]>(`/api/admin/stores/${storeId}/tickets`),
 
   callNext: (storeId: string) =>
     http<{ ok: true }>(`/api/admin/stores/${storeId}/call-next`, { method: 'POST' }),

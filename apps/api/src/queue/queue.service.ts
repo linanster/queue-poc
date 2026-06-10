@@ -143,6 +143,22 @@ export class QueueService {
     };
   }
 
+  /**
+   * All tickets in a store (any status), newest number first.
+   * Used by the admin ticket-lookup view to trace a customer's number
+   * after it has left the live queue (DONE/MISSED/CANCELLED).
+   */
+  async getAllTickets(storeId: string): Promise<AdminTicketView[]> {
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    if (!store) throw new NotFoundException('Store not found');
+
+    const tickets = await this.prisma.ticket.findMany({
+      where: { storeId },
+      orderBy: { number: 'desc' },
+    });
+    return Promise.all(tickets.map((t) => this.toAdminTicketView(t)));
+  }
+
   /** READY -> SERVING (staff starts serving). */
   async serve(ticketId: string): Promise<void> {
     const ticket = await this.requireTicket(ticketId);

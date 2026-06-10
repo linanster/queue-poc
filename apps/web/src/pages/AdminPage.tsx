@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { TicketStatus } from '@queue/shared';
-import type { AdminQueueView } from '@queue/shared';
+import type { AdminQueueView, AdminTicketView } from '@queue/shared';
 import { api } from '../api';
+
+type AdminTab = 'board' | 'lookup';
 
 export function AdminPage() {
   const { storeId = '' } = useParams();
+  const [tab, setTab] = useState<AdminTab>('board');
   const [data, setData] = useState<AdminQueueView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showQr, setShowQr] = useState(false);
@@ -55,6 +58,22 @@ export function AdminPage() {
     <div className="admin">
       <header className="admin__header">
         <h1>{data.store.name}</h1>
+        <nav className="admin__tabs">
+          <button
+            className={`tab ${tab === 'board' ? 'tab--active' : ''}`}
+            onClick={() => setTab('board')}
+          >
+            Live board
+          </button>
+          <button
+            className={`tab ${tab === 'lookup' ? 'tab--active' : ''}`}
+            onClick={() => setTab('lookup')}
+          >
+            All tickets
+          </button>
+        </nav>
+        {tab === 'board' && (
+          <>
         <div className="admin__meta">
           <label>
             Staff on shift:{' '}
@@ -161,8 +180,14 @@ export function AdminPage() {
             Reset / clear
           </button>
         </div>
+          </>
+        )}
       </header>
 
+      {tab === 'lookup' && <TicketsLookup storeId={storeId} />}
+
+      {tab === 'board' && (
+        <>
       {showQr && (
         <section className="qr-panel">
           <div className="qr-panel__code">
@@ -232,6 +257,8 @@ export function AdminPage() {
           ))}
         </Column>
       </section>
+        </>
+      )}
     </div>
   );
 }
@@ -277,5 +304,98 @@ function Row({
       {warn && <span className="badge badge--warn">Overdue</span>}
       <span className="row__actions">{children}</span>
     </div>
+  );
+}
+
+const STATUS_ACCENT: Record<TicketStatus, string> = {
+  [TicketStatus.WAITING]: 'waiting',
+  [TicketStatus.READY]: 'ready',
+  [TicketStatus.SERVING]: 'serving',
+  [TicketStatus.MISSED]: 'missed',
+  [TicketStatus.DONE]: 'done',
+  [TicketStatus.CANCELLED]: 'cancelled',
+};
+
+function fmt(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString();
+}
+
+function TicketsLookup({ storeId }: { storeId: string }) {
+  const [tickets, setTickets] = useState<AdminTicketView[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+
+  const refresh = useCallback(async () => {
+    try {
+      setTickets(await api.allTickets(storeId));
+      setError(null);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    if (!q) return tickets;
+    return tickets.filter((t) => String(t.number).includes(q));
+  }, [tickets, query]);
+
+  return (
+    <section className="lookup">
+      <div className="lookup__bar">
+        <input
+          className="lookup__search"
+          type="search"
+          inputMode="numeric"
+          placeholder="Search by ticket number…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button className="btn btn--sm btn--ghost" onClick={() => void refresh()}>
+          Refresh
+        </button>
+        <span className="lookup__count">{filtered.length} tickets</span>
+      </div>
+
+      {error && <div className="lookup__error">Error: {error}</div>}
+
+      <table className="lookup__table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Status</th>
+            <th>Taken</th>
+            <th>Called</th>
+            <th>Served</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((t) => (
+            <tr key={t.id}>
+              <td className="lookup__num">{t.number}</td>
+              <td>
+                <span className={`col__dot col__dot--${STATUS_ACCENT[t.status]}`} />
+                {t.status}
+              </td>
+              <td>{fmt(t.createdAt)}</td>
+              <td>{fmt(t.calledAt)}</td>
+              <td>{fmt(t.servedAt)}</td>
+            </tr>
+          ))}
+          {filtered.length === 0 && (
+            <tr>
+              <td colSpan={5} className="lookup__empty">
+                No tickets found.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </section>
   );
 }

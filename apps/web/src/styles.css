@@ -105,6 +105,9 @@ body {
 /* --- admin --- */
 .admin { padding: 24px; max-width: 1100px; margin: 0 auto; }
 .admin__header h1 { margin: 0 0 12px; }
+.admin__tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.tab { background: transparent; color: var(--muted); border: none; border-bottom: 2px solid transparent; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.tab--active { color: var(--fg); border-bottom-color: var(--accent); }
 .admin__meta { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; color: var(--muted); }
 .admin__meta input { width: 64px; background: var(--card); color: var(--fg); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 4px 8px; }
 .admin__rules { display: flex; align-items: end; gap: 12px; margin-bottom: 12px; color: var(--muted); }
@@ -166,7 +169,21 @@ body {
 .col__dot--serving { background: var(--serving); }
 .col__dot--missed { background: var(--missed); }
 .col__dot--waiting { background: var(--muted); }
+.col__dot--done { background: var(--accent); }
+.col__dot--cancelled { background: var(--danger); }
 .col__body { display: flex; flex-direction: column; gap: 8px; }
+
+/* --- admin ticket lookup --- */
+.lookup__bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.lookup__search { flex: 1; max-width: 320px; background: var(--card); color: var(--fg); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 12px; }
+.lookup__count { color: var(--muted); font-size: 13px; }
+.lookup__error { color: var(--danger); margin-bottom: 12px; }
+.lookup__table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
+.lookup__table th, .lookup__table td { text-align: left; padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.lookup__table th { color: var(--muted); font-weight: 600; }
+.lookup__table td .col__dot { display: inline-block; margin-right: 8px; vertical-align: middle; }
+.lookup__num { font-weight: 700; }
+.lookup__empty { text-align: center; color: var(--muted); padding: 24px; }
 
 .row {
   display: flex;
