@@ -139,9 +139,16 @@
   - 店员手动调小 `staffCount` 时若当前 `READY` 数已超过新容量，**不强制踢出**已激活的号，仅暂停补位直到回落到容量以内（避免打断正在就位的用户）。
 - **补位逻辑**：有人完成服务 / 取消 → `READY` 数低于 `capacity` → 自动从队列头部（`WAITING`）补一个号进入 Ready Pool → 该用户页面状态变为"轮到你了"。
   - 本质：**逐个补位、批量在场** —— 既不让用户傻等，也不让店员空转。
-- **过号处理（降级顺延，非作废）**：
-  - Ready Pool 中的号若超时未响应，**降级顺延**（移至队尾 N 位之后 / 标记 `missed`）。
-  - `missed` 号可被店员**一键召回**，体验更友好，不直接作废。
+  - **批量叫号**：除逐个"下一位"外，运营后台提供**一键批量叫号**（如 Call next 10），高峰开场时快速放号。
+- **可配置时间参数（门店级，存 SQLite，运营后台可改）**：
+  - `readyTimeoutMinutes`：`READY` 多久未响应自动过号（转 `MISSED`）。
+  - `recallWindowMinutes`：`MISSED` 的可召回窗口时长。
+  - `servingAlertMinutes`：`SERVING` 超过该时长在后台高亮告警（仅提醒，**不自动**结单）。
+  - 三者均有默认值，按门店独立存储，可在运营后台实时修改。
+- **过号处理（降级 + 召回窗口，超时失效）**：
+  - Ready Pool 中的号若超过 `readyTimeoutMinutes` 未响应，自动转 `MISSED`（进入独立"过号"区，并以转入时刻重置计时起点）。
+  - `MISSED` 号在 `recallWindowMinutes` **召回窗口内**可被店员**一键召回**（回到 `READY`），体验更友好。
+  - 召回窗口**超时后自动失效**（转 `CANCELLED`），从过号区移除，提示顾客重新取号 —— 避免 `MISSED` 无限堆积。此为相对早期"永不作废"设想的**显式策略升级**。
 
 ### 2.5 门店与队列模型
 
@@ -170,10 +177,11 @@
 
 供店员 / 店长使用：
 
-- 实时队列看板。
-- 叫号 / 下一位（触发 Ready Pool 补位）。
-- 过号召回（召回 `missed` 号）。
-- 手动调整顺序。
+- 实时队列看板（Waiting / Ready / Serving / Missed 四列，按业务流转方向排列）。
+- 叫号 / 下一位（触发 Ready Pool 补位），含**一键批量叫号**（Call next 10）。
+- 过号召回（召回 `missed` 号；超出召回窗口则不可召回）。
+- **服务超时告警**：`SERVING` 超过 `servingAlertMinutes` 高亮提示，仅提醒、不自动结单（避免误关闭仍在服务的顾客）。
+- 在岗店员数 `staffCount` 与时间参数（§2.4）实时编辑。
 - 清场 / 重置队列。
 - （后续）数据统计页：取号量、平均等待时长、放弃率、时段峰谷、门店对比。
 
@@ -234,7 +242,9 @@ queue/                         # 全新独立 repo
 ### 3.3 领域模型（草案）
 
 **Store（门店）**
-- `id`、`name`、`timezone`、`qrSecret`（门店码签名密钥）、`staffCount`（在岗店员数，决定 Ready Pool 容量）。
+- `id`、`name`、`timezone`、`staffCount`（在岗店员数，决定 Ready Pool 容量）。
+- 时间参数（门店级，运营后台可改）：`readyTimeoutMinutes`、`recallWindowMinutes`、`servingAlertMinutes`（见 §2.4）。
+- **门店码签名密钥**：PoC 采用**全局**环境变量 `STORE_QR_SECRET`（所有门店共用），per-store 密钥（`qrSecret` 字段）留待生产阶段。
 
 **Client（匿名客户端）**
 - `id`（UUID，匿名主键）、`createdAt`、`memberId`（可空，二期自愿绑定预留）。
@@ -249,6 +259,8 @@ queue/                         # 全新独立 repo
 WAITING ──(进入 Ready Pool)──► READY ──(店员确认服务)──► SERVING ──► DONE
    │                              │
    │                              └──(超时未响应)──► MISSED ──(店员召回)──► READY
+   │                                                  │
+   │                                                  └──(召回窗口超时)──► CANCELLED
    └──(用户放弃 / 闭店清队)──► CANCELLED
 ```
 
@@ -256,8 +268,8 @@ WAITING ──(进入 Ready Pool)──► READY ──(店员确认服务)─�
 - `READY`：已进入 Ready Pool，页面提示"轮到你了 / 请到 X 区"。
 - `SERVING`：店员已确认开始服务。
 - `DONE`：服务完成（触发自动补位）。
-- `MISSED`：过号（降级顺延，可被召回）。
-- `CANCELLED`：用户放弃或闭店清队。
+- `MISSED`：过号（在召回窗口内可被召回）。
+- `CANCELLED`：用户放弃、闭店清队，或**过号召回窗口超时自动失效**。
 
 ### 3.5 API 草案（REST + SSE）
 
@@ -268,11 +280,15 @@ WAITING ──(进入 Ready Pool)──► READY ──(店员确认服务)─�
 - `DELETE /api/tickets/me` —— 放弃排队。
 
 **运营后台侧**
-- `GET   /api/admin/stores/:storeId/queue` —— 实时队列看板。
+- `GET   /api/admin/stores/:storeId/queue` —— 实时队列看板（含 Waiting/Ready/Serving/Missed）。
 - `POST  /api/admin/stores/:storeId/call-next` —— 下一位（触发 Ready Pool 补位）。
+- `POST  /api/admin/stores/:storeId/call-next-batch` —— 批量叫号（body: `count`）。
+- `POST  /api/admin/stores/:storeId/staff-count` —— 修改在岗店员数（body: `staffCount`）。
+- `POST  /api/admin/stores/:storeId/rules` —— 修改门店时间参数（`readyTimeoutMinutes` / `recallWindowMinutes` / `servingAlertMinutes`）。
 - `POST  /api/admin/tickets/:ticketId/serve` —— 确认开始服务。
 - `POST  /api/admin/tickets/:ticketId/done` —— 完成服务（触发补位）。
-- `POST  /api/admin/tickets/:ticketId/recall` —— 召回 `missed` 号。
+- `POST  /api/admin/tickets/:ticketId/miss` —— 手动标记过号。
+- `POST  /api/admin/tickets/:ticketId/recall` —— 召回 `missed` 号（受召回窗口限制）。
 - `POST  /api/admin/stores/:storeId/reset` —— 清场 / 重置。
 
 > 鉴权说明：用户侧基于匿名 token（HttpOnly Cookie）。**PoC 阶段运营后台 API 不做鉴权**（仅本地 / 演示用），店员 / 店长登录鉴权留待二期（本服务自有账号体系，不依赖 China gateway）。
@@ -282,7 +298,10 @@ WAITING ──(进入 Ready Pool)──► READY ──(店员确认服务)─�
 **一期（PoC）实现：**
 - 匿名 token 识别 + 取号幂等 + 状态查询。
 - SSE 实时进度。
-- Ready Pool 分批叫号（容量自动计算，店员数可手改）+ 过号召回。
+- Ready Pool 分批叫号（容量自动计算，店员数可手改）+ 一键批量叫号。
+- 过号机制：READY 超时自动过号 + 召回窗口内一键召回 + 窗口超时自动失效。
+- 服务超时告警（仅提醒，不自动结单）。
+- 门店级可配置时间参数（readyTimeout / recallWindow / servingAlert），存 SQLite、运营后台可改。
 - 运营后台最小集（**不鉴权**）。
 - 基本异常处理（§2.8）。
 - 极简隐私说明、i18n 抽象层（中/英）。
@@ -299,6 +318,8 @@ WAITING ──(进入 Ready Pool)──► READY ──(店员确认服务)─�
 
 ## 4. 待办 / 开放问题
 
-- 门店码签名的密钥轮换与签名有效期方案，留待生产阶段（PoC 采用长期有效签名，见 §2.9）。
+- 门店码签名的密钥轮换与签名有效期方案，留待生产阶段（PoC 采用全局长期有效签名，见 §2.9 / §3.3）。
 - 运营后台店员鉴权的具体实现（本服务自有账号体系），留二期（见 §3.5 / §3.6）。
 - `buffer` 缓冲位取值是否随高峰时段调整，待运营数据验证（PoC 固定 `buffer = 1`，见 §2.4）。
+- 过号召回的排位策略：当前召回直接回到 `READY`（可能短暂超出容量）。生产可考虑"待召回队列"模式（Ready 满时优先于 Waiting 补位）以兼顾公平，待运营验证。
+- 设备识别跨 App 浏览器隔离：同一手机不同内置浏览器（微信/支付宝/Chrome）会被识别为不同 client。PoC 可接受；正式版若需"一人一号"需依赖手机号/会员/平台 openid 等主动标识（见 §2.6）。
