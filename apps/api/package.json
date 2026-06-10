@@ -9,7 +9,7 @@
     "prod": "prisma migrate deploy && node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed": "prisma migrate deploy && ts-node prisma/seed.ts",
     "db:setup": "prisma migrate dev --name init && ts-node prisma/seed.ts"
   },
   "dependencies": {
