@@ -32,6 +32,9 @@ export const api = {
   myTicket: (storeId: string) =>
     http<{ ticket: TicketView | null }>(`/api/tickets/me?storeId=${storeId}`),
 
+  latestTicket: (storeId: string) =>
+    http<{ ticket: TicketView | null }>(`/api/tickets/me/latest?storeId=${storeId}`),
+
   cancel: (storeId: string) =>
     http<{ ok: true }>(`/api/tickets/me?storeId=${storeId}`, { method: 'DELETE' }),
 

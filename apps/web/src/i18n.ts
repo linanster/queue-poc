@@ -22,6 +22,7 @@ const dict: Dict = {
   statusCancelled: { zh: '已取消/已失效（请重新取号）', en: 'Cancelled/expired (please take a new ticket)' },
   taking: { zh: '正在取号…', en: 'Taking a ticket…' },
   leaveQueue: { zh: '放弃排队', en: 'Leave queue' },
+  retake: { zh: '重新取号', en: 'Take a new ticket' },
   saveHint: {
     zh: '截图或收藏本页，关闭后可随时回来查看进度。',
     en: 'Screenshot or bookmark this page to return anytime.',

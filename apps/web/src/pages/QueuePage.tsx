@@ -29,7 +29,11 @@ export function QueuePage() {
         const s = await api.getStore(storeId);
         if (cancelled) return;
         setStore(s);
-        const tk = await api.takeTicket({ storeId, sig });
+        // Show the latest ticket (any status) if one exists, so a refresh after
+        // DONE/CANCELLED shows that ticket instead of issuing a new number (A).
+        const latest = await api.latestTicket(storeId);
+        if (cancelled) return;
+        const tk = latest.ticket ?? (await api.takeTicket({ storeId, sig }));
         if (cancelled) return;
         setTicket(tk);
         setPhase('active');
@@ -62,6 +66,14 @@ export function QueuePage() {
   async function leave() {
     await api.cancel(storeId);
     setTicket((prev) => (prev ? { ...prev, status: TicketStatus.CANCELLED } : prev));
+  }
+
+  // Explicit re-take after a ticket reached a terminal state (DONE/MISSED/
+  // CANCELLED), for customers who genuinely want to queue again.
+  async function retake() {
+    setMemberLink('idle');
+    const tk = await api.takeTicket({ storeId, sig });
+    setTicket(tk);
   }
 
   // MOCK ONLY (design.md §2.6). In production this redirects to the brand's
@@ -125,6 +137,15 @@ export function QueuePage() {
           ticket.status === TicketStatus.READY) && (
           <button className="btn btn--ghost" onClick={leave}>
             {t('leaveQueue', lang)}
+          </button>
+        )}
+
+      {ticket &&
+        (ticket.status === TicketStatus.DONE ||
+          ticket.status === TicketStatus.MISSED ||
+          ticket.status === TicketStatus.CANCELLED) && (
+          <button className="btn" onClick={retake}>
+            {t('retake', lang)}
           </button>
         )}
 

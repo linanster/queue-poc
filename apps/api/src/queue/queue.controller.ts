@@ -58,6 +58,21 @@ export class QueueController {
     return { ticket: await this.queue.getMyTicket(storeId, clientId) };
   }
 
+  /**
+   * Latest ticket for this client in a store, ANY status (incl. DONE/MISSED/
+   * CANCELLED). Used on page load so a refresh after completion shows the
+   * finished ticket instead of silently issuing a new number.
+   */
+  @Get('me/latest')
+  async latest(
+    @Query('storeId') storeId: string,
+    @Req() req: Request,
+  ): Promise<{ ticket: TicketView | null }> {
+    const clientId = this.readClient(req);
+    if (!clientId) return { ticket: null };
+    return { ticket: await this.queue.getLatestTicket(storeId, clientId) };
+  }
+
   /** Abandon the queue. */
   @Delete('me')
   async cancel(
